@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: my_postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: iot
+      POSTGRES_PASSWORD: Tien06022004
+      POSTGRES_DB: prisma_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql

@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // "ADMIN", "USER", ...
+  users User[]
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  username  String?
+  role      Role     @relation(fields: [roleId], references: [id])
+  roleId    Int
+  plants    Plant[]
+  gardens   Garden[]
+}
+
+model Plant {
+  id                    Int      @id @default(autoincrement())
+  name                  String   @unique // Tên cây
+  description           String? // Mô tả, công dụng, cách trồng
+  // Ngưỡng nhiệt độ tiêu chuẩn (°C)
+  minTemperature        Float? // Nhiệt độ tối thiểu
+  maxTemperature        Float? // Nhiệt độ tối đa
+  // Ngưỡng độ ẩm không khí tiêu chuẩn (%)
+  minAirHumidity        Float? // Độ ẩm không khí tối thiểu
+  maxAirHumidity        Float? // Độ ẩm không khí tối đa
+  // Ngưỡng độ ẩm đất tiêu chuẩn (%)
+  minSoilMoisture       Float? // Độ ẩm đất tối thiểu (dưới ngưỡng này cần tưới)
+  maxSoilMoisture       Float? // Độ ẩm đất tối đa
+  createdBy             User     @relation(fields: [createdById], references: [id])
+  createdById           Int
+  gardens               Garden[]
+}
+
+model Garden {
+  id          Int          @id @default(autoincrement())
+  name        String
+  plant       Plant        @relation(fields: [plantId], references: [id])
+  plantId     Int
+  user        User         @relation(fields: [userId], references: [id])
+  userId      Int
+  irrigationMode String?   // null: OFF, "schedule": Tưới theo lịch, "auto": Tưới tự động, "manual": Tưới thủ công
+  espDevice   EspDevice?  @relation(fields: [espId], references: [espId], onDelete: SetNull)
+  espId       String      @default("-1") // Hashcode ID từ ESP hardware, mặc định "-1" khi chưa kết nối
+  pumpStatus  String      @default("idle") // "idle" | "pending" | "on" | "off" | "error"
+  pumpStatusMessage String?
+  lastPumpFeedbackAt DateTime?
+  lastPumpSuccess Boolean?
+  irrigations Irrigation[]
+  schedules   Schedule[]
+  irrigationLogs IrrigationLog[]
+}
+
+model EspDevice {
+  espId         String   @id // Hashcode ID từ ESP hardware (được tạo sẵn)
+  temperature   Float?   // Nhiệt độ (DHT11) - đơn vị: °C
+  airHumidity   Float?   // Độ ẩm không khí (DHT11) - đơn vị: %
+  soilMoisture  Float?   // Độ ẩm đất - đơn vị: %
+  lastUpdated   DateTime @default(now()) // Thời gian cập nhật cuối cùng
+  isConnected   Boolean  @default(false) // Trạng thái kết nối: true = ON, false = OFF
+  gardens       Garden[] // Quan hệ one-to-many (cho phép nhiều vườn có espId =  thực tế chỉ có 1 garden)
+}
+
+model Irrigation {
+  id        Int      @id @default(autoincrement())
+  status    Boolean  @default(false) // đang tưới hay không
+  timestamp DateTime @default(now())
+  garden    Garden   @relation(fields: [gardenId], references: [id])
+  gardenId  Int
+}
+
+model Schedule {
+  id        Int      @id @default(autoincrement())
+  // Ngày cụ thể (nếu là lịch một lần). Null nếu là lịch lặp (daily/weekly/...)
+  date      DateTime?
+  // Thời gian trong ngày theo format HH:MM (24h)
+  time      String
+  // Thời lượng tưới tính bằng giây để phù hợp với ESP
+  durationSeconds Int
+  // Quy tắc lặp (ví dụ: "daily", "weekly:2" với 2 = thứ 3)
+  repeat    String?  // Null nếu là lịch 1 lần (dùng date)
+  enabled   Boolean  @default(true) // Bật/tắt schedule
+  garden    Garden   @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  gardenId  Int
+}
+
+model IrrigationLog {
+  id        Int      @id @default(autoincrement())
+  irrigationTime DateTime? // Thời gian tưới 
+  duration  Int      // Thời lượng tưới
+  // Trạng thái: "completed" | "failed" | "cancelled"
+  status    String   @default("completed") // Trạng thái tưới
+  // Loại tưới: "manual" | "schedule" | "auto"
+  type      String   @default("manual") // Loại tưới
+  notes     String? 
+  // Quan hệ với Garden
+  garden    Garden   @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  gardenId  Int
+  createdAt DateTime @default(now())
+}
