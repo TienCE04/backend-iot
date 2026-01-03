@@ -1,3 +1,4 @@
+
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateScheduleDto } from './dto/createSchedule.dto';
@@ -86,25 +87,51 @@ export class ScheduleService {
 
         // Xác định dayOfWeek nếu là weekly
         // Parse từ format "weekly:2" hoặc từ date
+        
+        // let dayOfWeek: number | undefined;
+        // if (repeatType === 'weekly') {
+        //   if (schedule.repeat && schedule.repeat.startsWith('weekly:')) {
+        //     // Parse từ format "weekly:2"
+        //     const dayOfWeekStr = schedule.repeat.split(':')[1];
+        //     dayOfWeek = parseInt(dayOfWeekStr, 10);
+        //     if (isNaN(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
+        //       // Fallback: dùng date nếu có
+        //       if (schedule.date) {
+        //         const date = new Date(schedule.date);
+        //         dayOfWeek = date.getDay(); // 0 = Chủ nhật, 1 = Thứ 2, ...
+        //       }
+        //     }
+        //   } else if (schedule.date) {
+        //     // Parse từ date
+        //     const date = new Date(schedule.date);
+        //     dayOfWeek = date.getDay(); // 0 = Chủ nhật, 1 = Thứ 2, ...
+        //   }
+        // }
+
         let dayOfWeek: number | undefined;
+
         if (repeatType === 'weekly') {
-          if (schedule.repeat && schedule.repeat.startsWith('weekly:')) {
-            // Parse từ format "weekly:2"
-            const dayOfWeekStr = schedule.repeat.split(':')[1];
-            dayOfWeek = parseInt(dayOfWeekStr, 10);
-            if (isNaN(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
-              // Fallback: dùng date nếu có
-              if (schedule.date) {
-                const date = new Date(schedule.date);
-                dayOfWeek = date.getDay(); // 0 = Chủ nhật, 1 = Thứ 2, ...
-              }
+          if (schedule.repeat?.startsWith('weekly:')) {
+            const parsed = Number(schedule.repeat.split(':')[1]);
+        
+            // Validate 0–6 (0 = Chủ nhật)
+            if (!Number.isInteger(parsed) || parsed < 0 || parsed > 6) {
+              this.logger.warn(
+                `[PUBLISH SCHEDULES] weekly schedule ${schedule.id} có dayOfWeek không hợp lệ: ${schedule.repeat}`
+              );
+              continue; // bỏ schedule lỗi
             }
-          } else if (schedule.date) {
-            // Parse từ date
-            const date = new Date(schedule.date);
-            dayOfWeek = date.getDay(); // 0 = Chủ nhật, 1 = Thứ 2, ...
+        
+            dayOfWeek = parsed;
+          } else {
+            this.logger.warn(
+              `[PUBLISH SCHEDULES] weekly schedule ${schedule.id} thiếu dayOfWeek`
+            );
+            continue;
           }
         }
+        
+
 
         this.logger.log(` [PUBLISH SCHEDULES] Gửi schedule ${i + 1}/${groupSchedules.length} (${repeatType}): time=${schedule.time}, duration=${schedule.durationSeconds}s${dayOfWeek !== undefined ? `, dayOfWeek=${dayOfWeek}` : ''}`);
 
@@ -312,4 +339,3 @@ export class ScheduleService {
     return deleted;
   }
 }
-
