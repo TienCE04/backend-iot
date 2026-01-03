@@ -97,8 +97,7 @@ export class MqttService implements OnModuleInit {
     this.client.on('message', async (topic, message) => {
       try {
         const messageStr = message.toString();
-        
-        // Log tất cả messages để dễ test và debug
+
         this.logger.log(` [MQTT] Nhận message từ topic [${topic}]: ${messageStr}`);
 
         // 1. conditions/esp_id/{temp, humi, soil} - ESP → Server
@@ -442,7 +441,7 @@ export class MqttService implements OnModuleInit {
       const { pumpState, statusMessage, successFlag } = this.normalizePumpFeedback(feedback); //chuẩn hóa
 
       this.logger.log(` Feedback từ garden ${gardenId}: ${JSON.stringify(feedback)}`);
-//cập nhật trạng thái
+      //cập nhật trạng thái
       const updateStatusGarden = await this.prisma.garden.update({
         where: { id: gardenId },
         data: {
